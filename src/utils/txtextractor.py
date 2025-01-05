@@ -2,6 +2,7 @@ import fitz
 import io
 import pandas as pd
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+import streamlit as st
 
 def chunkerizer(text: str):
     """
@@ -18,10 +19,9 @@ def chunkerizer(text: str):
         chunk_overlap=256,
         length_function=len
     )
-
-    chunks = text_splitter.split(text)
+    chunks = text_splitter.split_text(text)
     df = pd.DataFrame(chunks, columns=['chunks'])
-    yield from df.itertuples(index=False, name=None)
+    return df.itertuples(index=False, name=None)
 
 def text_from_pdf(pdf_document):
     """

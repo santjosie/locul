@@ -21,10 +21,10 @@ def upload_pdf():
                 st.error(f'An error occurred while uploading the files to stage. {file_names}')
             else:
                 for file_name in file_names:
-                    #load_file_content
-                    text = txtextractor.text_from_pdf(pdf_document) #extract_text
-                    chunks = txtextractor.chunkerizer(text) #chunkerize
-                    #save_in_chunks_table
+                    parsed_text = snowflaker.read_from_stage(file_name) #parse text from doc storage
+                    chunks = txtextractor.chunkerizer(parsed_text) #chunkerize
+                    chunks_with_file = [(chunk[0], file_name) for chunk in chunks]
+                    snowflaker.inser_chunks(chunks_with_file) #save_in_chunks_table
 
 def body():
     header()

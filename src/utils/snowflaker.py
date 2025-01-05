@@ -3,6 +3,7 @@ from snowflake.core import Root
 import streamlit as st
 import tempfile
 import os
+import json
 
 NUM_CHUNKS = 3
 
@@ -50,15 +51,18 @@ def load_to_stage(files):
     return 0, file_names
 
 def read_from_stage(file_name):
-        try:
-            with locul_stage.get(file_name) as file:
-                text = file.read().decode('utf-8')
-                chunks = snowflaker.generate_documents(text)
-                for i, chunk in enumerate(chunks):
-                    retrieval_search.put(chunk, file_name, i)
-        except Exception as e:
-            return 1, e
-    return 0, None
+    df = SESSION.sql(f"""
+            select 
+                snowflake.cortex.parse_document('@{STAGE_NAME}', '{file_name}') as parsed_document
+        """)
+
+    row = df.collect() #assuming single row returned
+    return json.loads(row[0]['PARSED_DOCUMENT']).get("content") #get the first row of dataframe, then convert to dict, then get value against content key
+
+def insert_chunks(chunks):
+    table_name = "locul_docs_chunks"
+    df = SESSION.createDataFrame(chunks, schema=["chunk", "relative_path"])
+    df.write.mode("append").saveAsTable(table_name)
 
 def body():
     header()

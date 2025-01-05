@@ -1,2 +1,5 @@
 streamlit
-snowflake-snowpark-python=1.9.0
+snowflake-snowpark-python==1.9.0
+snowflake
+langchain
+PyMuPDF

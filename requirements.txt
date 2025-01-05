@@ -1,0 +1,2 @@
+streamlit
+snowflake-snowpark-python=1.9.0

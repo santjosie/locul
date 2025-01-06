@@ -9,7 +9,12 @@ ATLASSIAN_USER_NAME = st.secrets['ATLASSIAN_USER_NAME']
 ATLASSIAN_USER_ID = st.secrets['ATLASSIAN_USER_ID']
 ATLASSIAN_API_TOKEN = st.secrets['ATLASSIAN_API_TOKEN']
 
-URL = "https://" + ATLASSIAN_DOMAIN + ".atlassian.net/rest/api/3/issue"
+URL = "https://" + ATLASSIAN_DOMAIN + ".atlassian.net/rest/api"
+HEADERS = {
+    "Accept": "application/json",
+    "Content-Type": "application/json"
+}
+AUTH = HTTPBasicAuth(username=ATLASSIAN_USER_NAME, password=ATLASSIAN_API_TOKEN)
 
 def configure_atlassian():
     if 'ATLASSIAN_API_TOKEN' in st.secrets and 'ATLASSIAN_USER_NAME' in st.secrets and 'ATLASSIAN_DOMAIN' in st.secrets and 'ATLASSIAN_PROJECT_KEY' in st.secrets and 'ATLASSIAN_USER_ID' in st.secrets:
@@ -28,15 +33,7 @@ def configure_atlassian():
             st.session_state['atlassian_user_id'] = st.text_input(label="Enter the id of the user", help="Copy this from the URL when viewing the Atlassian profile page")
 
 def invoke(summary, description):
-    url = "https://" + st.secrets['ATLASSIAN_DOMAIN'] + ".atlassian.net/rest/api/3/issue"
-
-    auth = HTTPBasicAuth(username=st.secrets['ATLASSIAN_USER_NAME'], password=st.secrets['ATLASSIAN_API_TOKEN'])
-
-    headers = {
-      "Accept": "application/json",
-      "Content-Type": "application/json"
-    }
-
+    path = "/3/issue"
     payload = json.dumps( {
       "fields": {
         "project": {
@@ -70,10 +67,10 @@ def invoke(summary, description):
 
     response = requests.request(
         method="POST",
-        url=url,
+        url=URL+path,
         data=payload,
-        headers=headers,
-        auth=auth
+        headers=HEADERS,
+        auth=AUTH
     )
     if response.status_code == 201:
         jira_key = json.loads(response.text)['key']
@@ -94,4 +91,23 @@ def push_to_jira(summary, description):
     else:
         st.error("Atlassian integration not configured. Enter details in the sidebar")
 
-def load_issues()
+def get_unprocessed_issues():
+    path = "/3/search/jql"
+    payload = json.dumps({
+        "fields": "id,key,summary,description",
+        "fieldsByKeys": True
+      #  "jql": "<string>"
+    })
+    response = requests.request(
+        method="POST",
+        url=URL+path,
+        headers=HEADERS,
+        data=payload,
+        auth=HTTPBasicAuth(ATLASSIAN_USER_NAME, ATLASSIAN_API_TOKEN)
+    )
+
+    if response == 200:
+        st.write(json.loads(response.text))
+    else:
+        st.error("Error while pulling issues from JIRA")
+        st.error(json.loads(response.text))

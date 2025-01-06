@@ -1,8 +1,5 @@
-import fitz
-import io
 import pandas as pd
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-import streamlit as st
 
 def chunkerizer(text: str):
     """
@@ -22,39 +19,3 @@ def chunkerizer(text: str):
     chunks = text_splitter.split_text(text)
     df = pd.DataFrame(chunks, columns=['chunks'])
     return df.itertuples(index=False, name=None)
-
-def text_from_pdf(pdf_document):
-    """
-    Accepts a list of pdf files and extracts text from the files
-
-    Parameters:
-    pdf_document: pdf file as BytesIO stream
-
-    Returns:
-    stream: text content of pdf_document as BytesIO stream
-    """
-    for pdf in pdf_document:
-        pdf_content = fitz.open(stream=pdf.read())
-        stream = io.BytesIO()
-        for page in pdf_content:
-            page_content = page.get_text()
-            stream.write(page_content.encode('utf-8'))
-            stream.write(b'\n')
-    return stream.getvalue().decode('utf-8')
-
-def generate_documents(text: str):
-    """
-    Accepts a string and converts into a list of strings each about 1000 words in length
-
-    Parameters:
-    stream: text content as BytesIO stream
-
-    Returns:
-    documents: text content in stream converted into a list of strings with each item having up to 1000 words
-    """
-    documents = []
-    words = text.split()
-    chunk_size = 1000
-    for i in range (0, len(words), chunk_size):
-        documents.append(' '.join(words[i:i+chunk_size]))
-    return documents

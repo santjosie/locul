@@ -8,10 +8,7 @@ def header():
 def pull_stories():
     pull = st.button(label='Pull stories', type='primary', help='Click this button to pull user stories from your ticket system.')
     if pull:
-        atlas.get_unprocessed_issues()
-        # get list of pulled stories
-        # get list of stories that are not pulled
-        # pull unpulled stories
+        stories = atlas.get_unprocessed_issues()  # pull unpulled stories
         # put it through embedding
 
 def body():

@@ -19,3 +19,5 @@ def chunkerizer(text: str):
     chunks = text_splitter.split_text(text)
     df = pd.DataFrame(chunks, columns=['chunks'])
     return df.itertuples(index=False, name=None)
+
+def

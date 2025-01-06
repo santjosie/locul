@@ -2,6 +2,7 @@ import requests
 from requests.auth import HTTPBasicAuth
 import json
 import streamlit as st
+import re
 
 ATLASSIAN_DOMAIN = st.secrets['ATLASSIAN_DOMAIN']
 ATLASSIAN_PROJECT_KEY = st.secrets['ATLASSIAN_PROJECT_KEY']
@@ -94,10 +95,11 @@ def push_to_jira(summary, description):
 def get_unprocessed_issues():
     path = "/3/search/jql"
     payload = json.dumps({
-        "fields": "id,key,summary,description",
-        "fieldsByKeys": True
-      #  "jql": "<string>"
+      "expand": "renderedFields",
+      "fields": ["issuekey","summary", "description"],
+      "jql": "project=HUM AND cf[10072] is empty"
     })
+
     response = requests.request(
         method="POST",
         url=URL+path,
@@ -106,8 +108,21 @@ def get_unprocessed_issues():
         auth=HTTPBasicAuth(ATLASSIAN_USER_NAME, ATLASSIAN_API_TOKEN)
     )
 
-    if response == 200:
-        st.write(json.loads(response.text))
+    if response.status_code == 200:
+        return json.loads(response.text)
     else:
         st.error("Error while pulling issues from JIRA")
         st.error(json.loads(response.text))
+
+def process_issue_description(description):
+    return description['content'][0]['content'][0]['text']
+
+def parse_issues_response(response):
+    issues = []
+    for issue in response['issues']:
+        issues.append({
+            'key': issue['key'],
+            'summary': issue['fields']['summary'],
+            'description': re.sub(r'<.*?>', ' ', issue['renderedFields']['description'])
+        })
+    return issues

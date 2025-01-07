@@ -109,7 +109,7 @@ def get_unprocessed_issues():
     )
 
     if response.status_code == 200:
-        return json.loads(response.text)
+        return parse_issues_response(json.loads(response.text))
     else:
         st.error("Error while pulling issues from JIRA")
         st.error(json.loads(response.text))

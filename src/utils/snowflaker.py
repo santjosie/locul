@@ -24,6 +24,20 @@ CORTEX_SEARCH_DATABASE = "LOCUL_DB"
 CORTEX_SEARCH_SCHEMA = "LOCUL_SCHEMA"
 CORTEX_SEARCH_SERVICE = "LOCUL_SEARCH_SERVICE"
 STAGE_NAME = "LOCUL_DOCS"
+
+MODEL = 'mistral-large'
+"""
+         'mixtral-8x7b',
+        'snowflake-arctic',
+        'mistral-large',
+        'llama3-8b',
+        'llama3-70b',
+        'reka-flash',
+        'mistral-7b',
+        'llama2-70b-chat',
+        'gemma-7b'), key="model_name"))
+"""
+
 retrieval_search = ROOT.databases[CORTEX_SEARCH_DATABASE].schemas[CORTEX_SEARCH_SCHEMA].cortex_search_services[CORTEX_SEARCH_SERVICE]
 LOCUL_STAGE = ROOT.databases[CORTEX_SEARCH_DATABASE].schemas[CORTEX_SEARCH_SCHEMA].stages[STAGE_NAME]
 
@@ -61,3 +75,10 @@ def insert_chunks(chunks):
     table_name = "locul_docs_chunks"
     df = SESSION.createDataFrame(chunks, schema=["chunk", "relative_path"])
     df.write.mode("append").saveAsTable(table_name)
+
+def complete_response(prompt):
+    cmd = """
+            select snowflake.cortex.complete(?, ?) as response
+          """
+    df_response = SESSION.sql(cmd, params=[MODEL, prompt]).collect()
+    return df_response

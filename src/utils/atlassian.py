@@ -3,6 +3,7 @@ from requests.auth import HTTPBasicAuth
 import json
 import streamlit as st
 import re
+import time
 
 ATLASSIAN_DOMAIN = st.secrets['ATLASSIAN_DOMAIN']
 ATLASSIAN_PROJECT_KEY = st.secrets['ATLASSIAN_PROJECT_KEY']
@@ -10,7 +11,10 @@ ATLASSIAN_USER_NAME = st.secrets['ATLASSIAN_USER_NAME']
 ATLASSIAN_USER_ID = st.secrets['ATLASSIAN_USER_ID']
 ATLASSIAN_API_TOKEN = st.secrets['ATLASSIAN_API_TOKEN']
 
-URL = "https://" + ATLASSIAN_DOMAIN + ".atlassian.net/rest/api"
+JIRA_URL = "https://" + ATLASSIAN_DOMAIN + ".atlassian.net/rest/api"
+CONFLUENCE_URL = "https://" + ATLASSIAN_DOMAIN +".atlassian.net/wiki/api"
+CONFLUENCE_SPACE_ID = "65978"
+CONFLUENCE_PAGE_ID = "98309"
 HEADERS = {
     "Accept": "application/json",
     "Content-Type": "application/json"
@@ -68,7 +72,7 @@ def invoke(summary, description):
 
     response = requests.request(
         method="POST",
-        url=URL+path,
+        url=JIRA_URL + path,
         data=payload,
         headers=HEADERS,
         auth=AUTH
@@ -102,7 +106,7 @@ def get_unprocessed_issues():
 
     response = requests.request(
         method="POST",
-        url=URL+path,
+        url=JIRA_URL + path,
         headers=HEADERS,
         data=payload,
         auth=HTTPBasicAuth(ATLASSIAN_USER_NAME, ATLASSIAN_API_TOKEN)
@@ -123,6 +127,63 @@ def parse_issues_response(response):
         issues.append({
             'key': issue['key'],
             'summary': issue['fields']['summary'],
-            'description': re.sub(r'<.*?>', ' ', issue['renderedFields']['description'])
+            'description': re.sub(r'<.*?>', ' ', issue['renderedFields']['description']),
+            'jira_url': issue['self']
         })
     return issues
+
+def parse_release_notes_response(response):
+    notes = []
+    for note in response['results']:
+        notes.append({
+            'title': note['title']
+        })
+    return notes
+
+def get_release_notes():
+    path = "/v2/spaces/" + CONFLUENCE_SPACE_ID +"/pages"
+    response = requests.request(
+        method="GET",
+        url=CONFLUENCE_URL + path,
+        headers=HEADERS,
+        auth=HTTPBasicAuth(ATLASSIAN_USER_NAME, ATLASSIAN_API_TOKEN)
+    )
+    if response.status_code == 200:
+        return parse_release_notes_response(json.loads(response.text))
+    else:
+        st.error("Error while pulling release notes from Confluence")
+        st.error(response.text)
+
+def write_to_confluence(title, body):
+    path = "/v2/pages"
+    payload = json.dumps({
+        "spaceId": CONFLUENCE_SPACE_ID,
+        "status": "current",
+        "title": title,
+        "body": {
+            "representation": "storage",
+            "value": body
+        }
+    })
+
+    response = requests.request(
+        method="POST",
+        url=CONFLUENCE_URL + path,
+        headers=HEADERS,
+        data=payload,
+        auth=HTTPBasicAuth(ATLASSIAN_USER_NAME, ATLASSIAN_API_TOKEN)
+    )
+
+    if response.status_code == 200:
+        return json.loads(response.text)
+    elif response.status_code == 400:
+        error = json.loads(response.text)
+        if error['errors'][0]['title'] == "A page with this title already exists: A page already exists with the same TITLE in this space":
+            title = title + " Copy " + str(int(time.time()))
+            return write_to_confluence(title, body)
+        else:
+            st.error("Error while pushing release note to Confluence")
+            st.error(response.text)
+    else:
+        st.error("Error while pushing release note to Confluence")
+        st.error(response.text)

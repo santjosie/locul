@@ -12,12 +12,10 @@ def chunkerizer(text: str):
     df.itertuples: iterates through the chunks in the dataframe
     """
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1512,
-        chunk_overlap=256,
+        chunk_size=1512, #1512
+        chunk_overlap=256, #256
         length_function=len
     )
     chunks = text_splitter.split_text(text)
     df = pd.DataFrame(chunks, columns=['chunks'])
     return df.itertuples(index=False, name=None)
-
-def

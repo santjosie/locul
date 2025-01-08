@@ -22,7 +22,7 @@ ROOT = Root(SESSION)
 # service parameters
 CORTEX_SEARCH_DATABASE = "LOCUL_DB"
 CORTEX_SEARCH_SCHEMA = "LOCUL_SCHEMA"
-CORTEX_SEARCH_SERVICE = "LOCUL_SEARCH_SERVICE"
+CORTEX_SEARCH_SERVICE = "locul_release_notes_search"
 STAGE_NAME = "LOCUL_DOCS"
 
 MODEL = 'mistral-large'
@@ -38,7 +38,7 @@ MODEL = 'mistral-large'
         'gemma-7b'), key="model_name"))
 """
 
-retrieval_search = ROOT.databases[CORTEX_SEARCH_DATABASE].schemas[CORTEX_SEARCH_SCHEMA].cortex_search_services[CORTEX_SEARCH_SERVICE]
+RETRIEVAL_SEARCH_SERVICE = ROOT.databases[CORTEX_SEARCH_DATABASE].schemas[CORTEX_SEARCH_SCHEMA].cortex_search_services[CORTEX_SEARCH_SERVICE]
 LOCUL_STAGE = ROOT.databases[CORTEX_SEARCH_DATABASE].schemas[CORTEX_SEARCH_SCHEMA].stages[STAGE_NAME]
 
 def header():
@@ -76,9 +76,59 @@ def insert_chunks(chunks):
     df = SESSION.createDataFrame(chunks, schema=["chunk", "relative_path"])
     df.write.mode("append").saveAsTable(table_name)
 
+def insert_release_chunks(chunks):
+    table_name = "locul_release_chunks"
+    df = SESSION.createDataFrame(chunks, schema=["key", "chunk", "title", "story_url", "notes_url"])
+    df.write.mode("append").saveAsTable(table_name)
+
 def complete_response(prompt):
     cmd = """
             select snowflake.cortex.complete(?, ?) as response
           """
     df_response = SESSION.sql(cmd, params=[MODEL, prompt]).collect()
     return df_response
+
+def get_similar_chunks_search_service(query):
+    columns = ["chunk", "title"]
+    response = RETRIEVAL_SEARCH_SERVICE.search(query, columns, limit=NUM_CHUNKS)
+    return response.json()
+
+def release_note_prompt(story):
+
+    prompt = f"""
+           You are an expert at creating release notes for user stories contained within the CONTEXT provided
+           between <context> and </context> tags.
+           When creating release notes, be concise and do not hallucinate. 
+
+           Do not mention the CONTEXT used in your answer.
+
+           <context>          
+           {story}
+           </context>
+           Release notes: 
+           """
+
+    return prompt
+
+def knowledge_base_prompt(question, context):
+
+    prompt = f"""
+           You are an expert chat assistance that extracs information from the CONTEXT provided
+           between <context> and </context> tags.
+           When ansering the question contained between <question> and </question> tags
+           be concise and do not hallucinate. 
+           If you don´t have the information just say so.
+           Only anwer the question if you can extract it from the CONTEXT provideed.
+           
+           Do not mention the CONTEXT used in your answer.
+    
+           <context>          
+           {context}
+           </context>
+           <question>  
+           {question}
+           </question>
+           Answer: 
+           """
+
+    return prompt

@@ -91,7 +91,7 @@ def complete_response(prompt):
 def get_similar_chunks_search_service(query):
     columns = ["chunk", "title"]
     response = RETRIEVAL_SEARCH_SERVICE.search(query, columns, limit=NUM_CHUNKS)
-    return response.json()
+    return json.loads(response.json())['results']
 
 def release_note_prompt(story):
 
@@ -113,12 +113,12 @@ def release_note_prompt(story):
 def knowledge_base_prompt(question, context):
 
     prompt = f"""
-           You are an expert chat assistance that extracs information from the CONTEXT provided
+           You are an expert chat assistance that extracts information from the CONTEXT provided
            between <context> and </context> tags.
-           When ansering the question contained between <question> and </question> tags
+           When answering the question contained between <question> and </question> tags
            be concise and do not hallucinate. 
            If you don´t have the information just say so.
-           Only anwer the question if you can extract it from the CONTEXT provideed.
+           Only answer the question if you can extract it from the CONTEXT provided.
            
            Do not mention the CONTEXT used in your answer.
     

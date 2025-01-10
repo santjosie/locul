@@ -135,9 +135,11 @@ def parse_issues_response(response):
 def parse_release_notes_response(response):
     notes = []
     for note in response['results']:
-        notes.append({
-            'title': note['title']
-        })
+        if note['parentId'] is not None:
+            notes.append({
+                'title': note['title'],
+                'body' : note['body']['storage']['value']
+            })
     return notes
 
 def get_release_notes():
@@ -146,7 +148,11 @@ def get_release_notes():
         method="GET",
         url=CONFLUENCE_URL + path,
         headers=HEADERS,
-        auth=HTTPBasicAuth(ATLASSIAN_USER_NAME, ATLASSIAN_API_TOKEN)
+        auth=HTTPBasicAuth(ATLASSIAN_USER_NAME, ATLASSIAN_API_TOKEN),
+        params={
+      "body-format": "storage",
+      "limit": 5
+    }
     )
     if response.status_code == 200:
         return parse_release_notes_response(json.loads(response.text))

@@ -27,42 +27,64 @@ def create_prompt(story):
 def complete(story):
     prompt = create_prompt(story)
     df_response = snowflaker.complete_response(prompt)
-    return df_response
+    return df_response[0].RESPONSE
 
 def pull_stories():
-    pull = st.button(label='Pull stories', type='primary', help='Click this button to pull user stories from your ticket system.')
-    if pull:
-        stories = atlas.get_unprocessed_issues()  # pull unpulled stories in release version @TODO - add release version parameter
-        if stories:
-            for story in stories:
-                jira_response = complete(story['summary'] + " "+ story['description']) #got the release note
-                release_note = jira_response[0].RESPONSE #parsed release note
-                confluence_response = atlas.write_to_confluence(story['key'] + ": " + story['summary'], release_note) #write to confluence
-                st.write(confluence_response)
-                confluence_web_link = confluence_response['_links']['base'] + confluence_response['_links']['webui'] #get confluence web link
-                jira_web_link = "https://" + atlas.ATLASSIAN_DOMAIN + ".atlassian.net/browse/" + story['key']
-                chunks = txtextractor.chunkerizer(release_note) #chunkify the release note
-                st.write(chunks)
-                chunks_with_metadata = [(story['key'], chunk[0], story['summary'], jira_web_link, confluence_web_link) for chunk in chunks] #create list with chunk and metadata of chunk (jira issue key, user story title, release note url, jira url)  @TODO
-                st.write(chunks_with_metadata)
-                snowflaker.insert_release_chunks(chunks_with_metadata) #save_in_chunks_table#push the chunks into snowflake @TODO
+    pull_stories_text = "Pulling user stories..."
+    pull_stories_bar = st.sidebar.progress(value=0, text=pull_stories_text)
+    gen_notes_text = "Drafting release notes..."
+    gen_notes_bar = st.sidebar.progress(value=0, text=gen_notes_text)
+    pub_notes_text = "Publishing release notes..."
+    pub_notes_bar = st.sidebar.progress(value=0, text=pub_notes_text)
+    stories = atlas.get_unprocessed_issues()  # pull unpulled stories in release version @TODO - add release version parameter
+    pull_stories_bar.progress(value=100, text=pull_stories_text)
+    total_stories = len(stories)
+    if stories:
+        for i, story in enumerate(stories):
+            jira_response = complete(story['summary'] + " "+ story['description']) #got the release note
+            gen_notes_bar.progress(value=(i+1/total_stories), text=gen_notes_text)
+            confluence_response = atlas.write_to_confluence(story['key'] + ": " + story['summary'], jira_response) #write to confluence
+            pub_notes_bar.progress(value=(i+1/total_stories), text=pub_notes_text)
+                #confluence_web_link = confluence_response['_links']['base'] + confluence_response['_links']['webui'] #get confluence web link
+                #jira_web_link = "https://" + atlas.ATLASSIAN_DOMAIN + ".atlassian.net/browse/" + story['key']
+                #chunks = txtextractor.chunkerizer(jira_response) #chunkify the release note
+                #chunks_with_metadata = [(story['key'], chunk[0], story['summary'], jira_web_link, confluence_web_link) for chunk in chunks] #create list with chunk and metadata of chunk (jira issue key, user story title, release note url, jira url)  @TODO
+                #snowflaker.insert_release_chunks(chunks_with_metadata) #save_in_chunks_table#push the chunks into snowflake @TODO
+    st.sidebar.success("Release notes created and published", icon='😍')
+def knowledge_base_creator():
+    pull_notes_text = "Pulling release notes..."
+    pull_notes_bar = st.sidebar.progress(value=0, text=pull_notes_text)
+    notes = atlas.get_release_notes()
+    pull_notes_bar.progress(value=1, text=pull_notes_text)
+    for note in notes:
+        chunks = txtextractor.chunkerizer(note) #chunkify the release note @TODO - clean it up
+        st.write(chunks)
+# chunks_with_metadata = [(story['key'], chunk[0], story['summary'], jira_web_link, confluence_web_link) for chunk in chunks] #create list with chunk and metadata of chunk (jira issue key, user story title, release note url, jira url)  @TODO
+# snowflaker.insert_release_chunks(chunks_with_metadata) #save_in_chunks_table#push the chunks into snowflake @TODO
 
 def content():
-    issues_col, notes_col, base_col = st.columns(3)
-    with issues_col:
-        st.subheader("New features")
+    stories_tab, notes_tab, base_col = st.tabs(["User stories", "Release notes", "Knowledge base"])
+    with stories_tab:
+        st.caption("Below is the list of user stories that have been included in your new version drop.")
+        create_notes = st.button("Create release notes", help="Click this button to generate release notes for the user stories.")
+        if create_notes:
+            pull_stories()
+        st.subheader("List of user stories")
         with st.container(border=True):
-            st.write("Temporary placeholder")
-            """stories = atlas.get_unprocessed_issues()
+            stories = atlas.get_unprocessed_issues()
             for story in stories:
                 with st.expander(story['summary'], expanded=False):
-                    st.markdown(story['description'])"""
+                    st.markdown(story['description'])
 
-    with notes_col:
+    with notes_tab:
+        st.caption("Below is the list of release notes that have been generated for your new features")
+        create_knowledge = st.button("Create knowledge base", help="Click this button to generate a knowledge base from your release notes.")
         st.subheader("Release notes")
         with st.container(border=True):
-            st.write("Temporary placeholder")
-            #st.table(data=atlas.get_release_notes())
+            releases = atlas.get_release_notes()
+            for release in releases:
+                with st.expander(release['title'], expanded=False):
+                    st.markdown(release['body'])
 
     with base_col:
         st.subheader("Kowledge base")
@@ -72,7 +94,11 @@ def content():
 
             if question:
                 prompt_context = snowflaker.get_similar_chunks_search_service(question)
-                answer = snowflaker.complete(prompt_context)
+                st.write(prompt_context)
+                prompt = snowflaker.knowledge_base_prompt(question, prompt_context)
+                st.write(prompt)
+                answer = snowflaker.complete_response(prompt)
+                st.write(answer)
 
     #user stories available for processing
 

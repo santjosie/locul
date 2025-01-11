@@ -5,8 +5,6 @@ import tempfile
 import os
 import json
 
-NUM_CHUNKS = 3
-
 CONNECTION_PARAMETERS = {
    "account": st.secrets['SNOWFLAKE_ACCOUNT'],
    "user": st.secrets['SNOWFLAKE_USER'],
@@ -26,17 +24,6 @@ CORTEX_SEARCH_SERVICE = "locul_search_service"
 STAGE_NAME = "LOCUL_DOCS"
 
 MODEL = 'mistral-large'
-"""
-         'mixtral-8x7b',
-        'snowflake-arctic',
-        'mistral-large',
-        'llama3-8b',
-        'llama3-70b',
-        'reka-flash',
-        'mistral-7b',
-        'llama2-70b-chat',
-        'gemma-7b'), key="model_name"))
-"""
 
 RETRIEVAL_SEARCH_SERVICE = ROOT.databases[CORTEX_SEARCH_DATABASE].schemas[CORTEX_SEARCH_SCHEMA].cortex_search_services[CORTEX_SEARCH_SERVICE]
 LOCUL_STAGE = ROOT.databases[CORTEX_SEARCH_DATABASE].schemas[CORTEX_SEARCH_SCHEMA].stages[STAGE_NAME]
@@ -85,12 +72,12 @@ def complete_response(prompt):
     cmd = """
             select snowflake.cortex.complete(?, ?) as response
           """
-    df_response = SESSION.sql(cmd, params=[MODEL, prompt]).collect()
+    df_response = SESSION.sql(cmd, params=[st.session_state['MODEL'], prompt]).collect()
     return df_response
 
 def get_similar_chunks_search_service(query):
     columns = ["chunk", "title"]
-    response = RETRIEVAL_SEARCH_SERVICE.search(query, columns, limit=NUM_CHUNKS)
+    response = RETRIEVAL_SEARCH_SERVICE.search(query, columns, limit=st.session_state['NUM_CHUNKS'])
     return json.loads(response.json())['results']
 
 def release_note_prompt(story):

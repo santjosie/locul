@@ -1,6 +1,6 @@
 import streamlit as st
 from utils import atlassian as atlas
-from utils import snowflaker, txtextractor
+from utils import snowflaker, txtextractor, session as ses
 
 def header():
     st.header("Locul")
@@ -45,11 +45,6 @@ def pull_stories():
             gen_notes_bar.progress(value=((i+1)/total_stories), text=gen_notes_text)
             confluence_response = atlas.write_to_confluence(story['key'] + ": " + story['summary'], jira_response) #write to confluence
             pub_notes_bar.progress(value=((i+1)/total_stories), text=pub_notes_text)
-                #confluence_web_link = confluence_response['_links']['base'] + confluence_response['_links']['webui'] #get confluence web link
-                #jira_web_link = "https://" + atlas.ATLASSIAN_DOMAIN + ".atlassian.net/browse/" + story['key']
-                #chunks = txtextractor.chunkerizer(jira_response) #chunkify the release note
-                #chunks_with_metadata = [(story['key'], chunk[0], story['summary'], jira_web_link, confluence_web_link) for chunk in chunks] #create list with chunk and metadata of chunk (jira issue key, user story title, release note url, jira url)  @TODO
-                #snowflaker.insert_release_chunks(chunks_with_metadata) #save_in_chunks_table#push the chunks into snowflake @TODO
     st.sidebar.success("Release notes created and published", icon='😍')
 def knowledge_base_creator():
     pull_notes_text = "Pulling release notes..."
@@ -75,28 +70,34 @@ def knowledge_base_creator():
 def content():
     stories_tab, notes_tab, base_col = st.tabs(["User stories", "Release notes", "Knowledge base"])
     with stories_tab:
-        st.caption("Below is the list of user stories that have been included in your new version drop.")
-        create_notes = st.button("Create release notes", help="Click this button to generate release notes for the user stories.")
-        if create_notes:
-            pull_stories()
-        st.subheader("List of user stories")
-        with st.container(border=True):
-            stories = atlas.get_unprocessed_issues()
-            for story in stories:
-                with st.expander(story['summary'], expanded=False):
-                    st.markdown(story['description'])
+        if st.session_state['ATLASSIAN_STATUS']:
+            st.caption("Below is the list of user stories that have been included in your new version drop.")
+            create_notes = st.button("Create release notes", help="Click this button to generate release notes for the user stories.")
+            if create_notes:
+                pull_stories()
+            st.subheader("List of user stories")
+            with st.container(border=True):
+                stories = atlas.get_unprocessed_issues()
+                for story in stories:
+                    with st.expander(story['summary'], expanded=False):
+                        st.markdown(story['description'])
+        else:
+            st.info("Atlassian integration not configured. Enter details in the configuration page")
 
     with notes_tab:
-        st.caption("Below is the list of release notes that have been generated for your new features")
-        create_knowledge = st.button("Create knowledge base", help="Click this button to generate a knowledge base from your release notes.")
-        if create_knowledge:
-            knowledge_base_creator()
-        st.subheader("Release notes")
-        with st.container(border=True):
-            releases = atlas.get_release_notes()
-            for release in releases:
-                with st.expander(release['title'], expanded=False):
-                    st.markdown(release['body'])
+        if st.session_state['ATLASSIAN_STATUS']:
+            st.caption("Below is the list of release notes that have been generated for your new features")
+            create_knowledge = st.button("Create knowledge base", help="Click this button to generate a knowledge base from your release notes.")
+            if create_knowledge:
+                knowledge_base_creator()
+            st.subheader("Release notes")
+            with st.container(border=True):
+                releases = atlas.get_release_notes()
+                for release in releases:
+                    with st.expander(release['title'], expanded=False):
+                        st.markdown(release['body'])
+        else:
+            st.info("Atlassian integration not configured. Enter details in the configuration page")
 
     with base_col:
         st.subheader("Kowledge base")
@@ -113,8 +114,8 @@ def content():
     #user stories available for processing
 
 def body():
+    ses.atlas_session()
     header()
     content()
-    #pull_stories()
 
 body()

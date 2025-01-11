@@ -22,7 +22,7 @@ ROOT = Root(SESSION)
 # service parameters
 CORTEX_SEARCH_DATABASE = "LOCUL_DB"
 CORTEX_SEARCH_SCHEMA = "LOCUL_SCHEMA"
-CORTEX_SEARCH_SERVICE = "locul_release_notes_search"
+CORTEX_SEARCH_SERVICE = "locul_search_service"
 STAGE_NAME = "LOCUL_DOCS"
 
 MODEL = 'mistral-large'
@@ -78,7 +78,7 @@ def insert_chunks(chunks):
 
 def insert_release_chunks(chunks):
     table_name = "locul_release_chunks"
-    df = SESSION.createDataFrame(chunks, schema=["key", "chunk", "title", "story_url", "notes_url"])
+    df = SESSION.createDataFrame(chunks, schema=[ "chunk", "title"])
     df.write.mode("append").saveAsTable(table_name)
 
 def complete_response(prompt):

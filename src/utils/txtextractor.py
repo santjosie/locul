@@ -1,5 +1,7 @@
+import streamlit as st
 import pandas as pd
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from utils import session as ses
 
 def chunkerizer(text: str):
     """
@@ -11,9 +13,10 @@ def chunkerizer(text: str):
     Returns:
     df.itertuples: iterates through the chunks in the dataframe
     """
+    ses.chunk_session()
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1512, #1512
-        chunk_overlap=256, #256
+        chunk_size = st.session_state['CHUNK_SIZE'],
+        chunk_overlap = st.session_state['CHUNK_OVERLAP'],
         length_function=len
     )
     chunks = text_splitter.split_text(text)

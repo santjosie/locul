@@ -1,13 +1,19 @@
 import streamlit as st
 from requests.auth import HTTPBasicAuth
 
-def atlas_session():
-    st.session_state["ATLASSIAN_STATUS"] = True
+def chunk_session():
+    st.session_state['CHUNK_SIZE'] = 1512
+    st.session_state['CHUNK_OVERLAP'] = 256
+
+def snowflake_session():
     st.session_state['MODEL'] = 'mistral-large'
     st.session_state['TOP_P'] = 0.4
     st.session_state['TEMPERATURE'] = 0.7
     st.session_state['MAX_TOKENS'] = 4096
     st.session_state['NUM_CHUNKS'] = 3
+
+def atlas_session():
+    st.session_state["ATLASSIAN_STATUS"] = True
 
     if 'ATLASSIAN_API_TOKEN' in st.secrets:
         st.session_state["ATLASSIAN_API_TOKEN"] = st.secrets['ATLASSIAN_API_TOKEN']

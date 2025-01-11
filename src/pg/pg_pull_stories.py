@@ -5,29 +5,7 @@ from utils import snowflaker, txtextractor, session as ses
 def header():
     st.header("Locul")
     st.caption('Locul is an AI agent assistant for product managers and technical writers. Use Locul to auto-generate release notes from your user stories and then create a searchable knowledge base for your product.')
-    st.divider()
 
-def create_prompt(story):
-
-    prompt = f"""
-           You are an expert at creating release notes for user stories contained within the CONTEXT provided
-           between <context> and </context> tags.
-           When creating release notes, be concise and do not hallucinate. 
-
-           Do not mention the CONTEXT used in your answer.
-
-           <context>          
-           {story}
-           </context>
-           Release notes: 
-           """
-
-    return prompt
-
-def complete(story):
-    prompt = create_prompt(story)
-    df_response = snowflaker.complete_response(prompt)
-    return df_response[0].RESPONSE
 
 def pull_stories():
     pull_stories_text = "Pulling user stories..."
@@ -41,11 +19,12 @@ def pull_stories():
     total_stories = len(stories)
     if stories:
         for i, story in enumerate(stories):
-            jira_response = complete(story['summary'] + " "+ story['description']) #got the release note
+            jira_response = snowflaker.complete(story['summary'] + " "+ story['description']) #got the release note
             gen_notes_bar.progress(value=((i+1)/total_stories), text=gen_notes_text)
             confluence_response = atlas.write_to_confluence(story['key'] + ": " + story['summary'], jira_response) #write to confluence
             pub_notes_bar.progress(value=((i+1)/total_stories), text=pub_notes_text)
     st.sidebar.success("Release notes created and published", icon='😍')
+
 def knowledge_base_creator():
     pull_notes_text = "Pulling release notes..."
     pull_notes_bar = st.sidebar.progress(value=0, text=pull_notes_text)
@@ -100,7 +79,7 @@ def content():
             st.info("Atlassian integration not configured. Enter details in the configuration page")
 
     with base_col:
-        st.subheader("Kowledge base")
+        st.subheader("Knowledge base")
         with st.container(border=True):
             question = st.text_input("Ask question's about your product's functionality",
                                      placeholder="How does an employee book a vacation?")

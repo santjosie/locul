@@ -4,6 +4,9 @@ import streamlit as st
 import tempfile
 import os
 import json
+from utils import session as ses
+
+ses.snowflake_session()
 
 CONNECTION_PARAMETERS = {
    "account": st.secrets['SNOWFLAKE_ACCOUNT'],
@@ -119,3 +122,25 @@ def knowledge_base_prompt(question, context):
            """
 
     return prompt
+
+def create_prompt(story):
+
+    prompt = f"""
+           You are an expert at creating release notes for user stories contained within the CONTEXT provided
+           between <context> and </context> tags.
+           When creating release notes, be concise and do not hallucinate. 
+
+           Do not mention the CONTEXT used in your answer.
+
+           <context>          
+           {story}
+           </context>
+           Release notes: 
+           """
+
+    return prompt
+
+def complete(story):
+    prompt = create_prompt(story)
+    df_response = complete_response(prompt)
+    return df_response[0].RESPONSE

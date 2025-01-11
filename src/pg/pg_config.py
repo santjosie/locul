@@ -6,6 +6,8 @@ def header():
 def content():
     model_tab, atlas_tab, prompt_tab = st.tabs(["Model", "Atlassian", "Prompt"])
     with model_tab:
+        ses.snowflake_session()
+        ses.chunk_session()
         model_col, rag_col, def_col = st.columns(3, border=True)
         with model_col:
             st.subheader("Model")
@@ -28,8 +30,11 @@ def content():
         with rag_col:
             st.subheader("RAG")
             st.session_state['NUM_CHUNKS'] = st.slider(label="Number of chunks", min_value=1, max_value=5, value=st.session_state['NUM_CHUNKS'], step=1)
+            st.session_state['CHUNK_SIZE'] = st.number_input(label="Chunk size", value=st.session_state['CHUNK_SIZE'])
+            st.session_state['CHUNK_OVERLAP'] = st.number_input(label="Chunk overlap", value=st.session_state['CHUNK_OVERLAP'])
 
     with atlas_tab:
+        ses.atlas_session()
         auth_col, jira_col, conf_col = st.columns(3, border=True)
         with auth_col:
             st.subheader("Atlassian")
@@ -72,7 +77,6 @@ def content():
         st.write("Prompt tab")
 
 def main():
-    ses.atlas_session()
     header()
     content()
 

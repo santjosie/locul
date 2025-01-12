@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from utils import session as ses
+import PyPDF2
+import docx2txt
 
 def chunkerizer(text: str):
     """
@@ -22,3 +24,18 @@ def chunkerizer(text: str):
     chunks = text_splitter.split_text(text)
     df = pd.DataFrame(chunks, columns=['chunks'])
     return df.itertuples(index=False, name=None)
+
+def extract_text(docs):
+    full_text=""
+    for doc in docs:
+        if doc.type == "application/pdf":
+            reader = PyPDF2.PdfReader(doc)
+            text = ""
+            for page in range(len(reader.pages)):
+                text += reader.pages[page].extract_text()
+        elif doc.type in ["application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/msword"]:
+            text = docx2txt.process(doc)
+        else:
+            text = doc.read().decode("utf-8")
+        full_text += text
+    return full_text

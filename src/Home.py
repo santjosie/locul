@@ -1,7 +1,7 @@
 import streamlit as st
 
 def navigation():
-    pages = [st.Page(page="pg/pg_pull_stories.py", title="Home"),
+    pages = [st.Page(page="pg/pg_main.py", title="Home"),
              st.Page(page="pg/pg_config.py", title="Configuration")]
 
     pg = st.navigation(pages=pages, expanded=True)

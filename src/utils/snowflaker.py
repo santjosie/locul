@@ -29,42 +29,6 @@ STAGE_NAME = "LOCUL_DOCS"
 MODEL = 'mistral-large'
 
 RETRIEVAL_SEARCH_SERVICE = ROOT.databases[CORTEX_SEARCH_DATABASE].schemas[CORTEX_SEARCH_SCHEMA].cortex_search_services[CORTEX_SEARCH_SERVICE]
-LOCUL_STAGE = ROOT.databases[CORTEX_SEARCH_DATABASE].schemas[CORTEX_SEARCH_SCHEMA].stages[STAGE_NAME]
-
-def header():
-    st.header("Load local history")
-    st.caption("Upload historical records to Locul for analysis")
-
-def load_to_stage(files):
-    file_names = []
-    for file in files:
-        try:
-            with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-                temp_file.write(file.getvalue())
-                file_path = temp_file.name
-                file_name = os.path.basename(file_path)
-                LOCUL_STAGE.put(local_file_name=file_path,
-                                stage_location="/",
-                                auto_compress=False,
-                                overwrite=True)
-                file_names.append(file_name)
-        except Exception as e:
-            return 1, e
-    return 0, file_names
-
-def read_from_stage(file_name):
-    df = SESSION.sql(f"""
-            select 
-                snowflake.cortex.parse_document('@{STAGE_NAME}', '{file_name}') as parsed_document
-        """)
-
-    row = df.collect() #assuming single row returned
-    return json.loads(row[0]['PARSED_DOCUMENT']).get("content") #get the first row of dataframe, then convert to dict, then get value against content key
-
-def insert_chunks(chunks):
-    table_name = "locul_docs_chunks"
-    df = SESSION.createDataFrame(chunks, schema=["chunk", "relative_path"])
-    df.write.mode("append").saveAsTable(table_name)
 
 def insert_release_chunks(chunks):
     table_name = "locul_release_chunks"
@@ -76,7 +40,7 @@ def complete_response(prompt):
             select snowflake.cortex.complete(?, ?) as response
           """
     df_response = SESSION.sql(cmd, params=[st.session_state['MODEL'], prompt]).collect()
-    return df_response
+    return df_response[0].RESPONSE
 
 def get_similar_chunks_search_service(query):
     columns = ["chunk", "title"]
@@ -123,24 +87,68 @@ def knowledge_base_prompt(question, context):
 
     return prompt
 
-def create_prompt(story):
 
+def user_story_prompt(context, features):
     prompt = f"""
-           You are an expert at creating release notes for user stories contained within the CONTEXT provided
-           between <context> and </context> tags.
-           When creating release notes, be concise and do not hallucinate. 
-
-           Do not mention the CONTEXT used in your answer.
+            You are a seasoned product manager. You are an expert in writing detailed user stories, which are used
+            by designers and developers to build new features in your product. Your task is to create user stories
+            for new features and requirements that are provided to you by the user. The requirements are extracted
+            from the CONTEXT provided between <context> and </context> tags.
+            
+            After understanding the requirements, you need to consider features in the existing product that are related to
+            the new feature that you are building. These are provided between the <features> and </features> tags.
+            The new user story should attempt to design the new feature in the context of the existing features.
+    
+            The user story should contain the following sections, the title of each section is specified between the <title>
+             and </title> tags and the instruction for what to write in each section is specified between the <instruction>
+             and </instruction> tags.
+            
+            <title>Title</title>
+            <instructions>This is a short sentence that describes the user story. Written from the perspective of the user
+            and what their needs are. The format in which it needs to be written is [User] [verb] [what they are doing].
+            Example - Recruiter updates the status of a ticket</instructions>
+            
+            <title>Oneliner</title>
+            <instructions>Do not show the heading for this section. An expansion on the title, giving a bit more information
+            regarding the goals of the user. Also written from the perspective of the user. Can introduce the context.
+            Focus is on the final need of the user that needs to be achieved in the specified setting.
+            The format in which it needs to be written is "As a [User], I want to [action they want to take], so that
+            [why they want to take that action].
+            Example - As a recruiter, I want to update the status of a ticket that I am working on so that the candidate
+            is informed of the current status of the ticket.</instructions>
+            
+            <title>Process flow</title>
+            <instructions>A numbered list depicting each user interaction and system responses in the user flow.</instructions>"
+            
+            <title>Specifications</title>
+            <instructions>While the core of the user story focuses on the user and their primary need, the user story
+            issue also needs to contain mandatory specifications if any. These could include information about the
+            specific capabilities that need to be supported - for instance, ability to add and edit information, but
+            prevent the deletion of information. Use Crisp writing style when adding this information in. Any formulas
+            for calculation of values, behaviour of page on interactions etc. should be specified here.</instructions>
+            
+            <title>Acceptance criteria</title>
+            <instructions>These are all the minimum scenarios that need to be tested after the feature has been built.
+            Each acceptance criteria should be written in in Gherkin format, that is in the Given...When...Then.. format.
+            In this format, under the Given section, you will describe the setup data for the scenario, the When section
+            will describe the action or even that initiates the scenario, and the Then section will describe the desired
+            outcome or result.</instructions>
+            
+            Use simple language. Keep sentences short. Avoid redundancy. Limit adjectives and adverbs. Make sure that you
+            cover all the edge cases and complex scenarios when creating user stories and the acceptance criteria.
 
            <context>          
-           {story}
+           {context}
            </context>
-           Release notes: 
+           
+           <features>
+           {features}
+           </features>
+           
+           Do not mention the CONTEXT used in your answer.
+           
+           User story: 
            """
 
     return prompt
 
-def complete(story):
-    prompt = create_prompt(story)
-    df_response = complete_response(prompt)
-    return df_response[0].RESPONSE

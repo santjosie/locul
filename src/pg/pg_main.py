@@ -19,9 +19,10 @@ def pull_stories():
     total_stories = len(stories)
     if stories:
         for i, story in enumerate(stories):
-            jira_response = snowflaker.complete(story['summary'] + " "+ story['description']) #got the release note
+            prompt = snowflaker.release_note_prompt(story['summary'] + " "+ story['description'])
+            release_note = snowflaker.complete_response(prompt) #got the release note
             gen_notes_bar.progress(value=((i+1)/total_stories), text=gen_notes_text)
-            confluence_response = atlas.write_to_confluence(story['key'] + ": " + story['summary'], jira_response) #write to confluence
+            confluence_response = atlas.write_to_confluence(story['key'] + ": " + story['summary'], release_note) #write to confluence
             pub_notes_bar.progress(value=((i+1)/total_stories), text=pub_notes_text)
     st.sidebar.success("Release notes created and published", icon='😍')
 
@@ -47,7 +48,7 @@ def knowledge_base_creator():
     st.sidebar.success("Release notes loaded to knowledge base", icon='😍')
 
 def content():
-    stories_tab, notes_tab, base_col = st.tabs(["User stories", "Release notes", "Knowledge base"])
+    stories_tab, notes_tab, base_col, feature_col = st.tabs(["User stories", "Release notes", "Knowledge base", "New feature"])
     with stories_tab:
         if st.session_state['ATLASSIAN_STATUS']:
             st.caption("Below is the list of user stories that have been included in your new version drop.")
@@ -88,9 +89,20 @@ def content():
                 prompt_context = snowflaker.get_similar_chunks_search_service(question)
                 prompt = snowflaker.knowledge_base_prompt(question, prompt_context)
                 answer = snowflaker.complete_response(prompt)
-                st.write(answer[0]['RESPONSE'])
+                st.write(answer)
 
-    #user stories available for processing
+    with feature_col:
+        st.subheader("New feature")
+        uploaded_file = st.file_uploader(label="Choose a file", label_visibility="collapsed", accept_multiple_files=True,
+                                     type=["pdf", "docx", "doc", "txt"])
+        if uploaded_file:
+            generate = st.button("Generate user stories", type="primary")
+            if generate:
+                requirements_text = txtextractor.extract_text(uploaded_file)
+                existing_features = snowflaker.get_similar_chunks_search_service(requirements_text)
+                prompt = snowflaker.user_story_prompt(requirements_text, existing_features)
+                user_stories = snowflaker.complete_response(prompt)
+                st.markdown(user_stories)
 
 def body():
     ses.atlas_session()

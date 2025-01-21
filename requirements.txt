@@ -5,4 +5,4 @@ langchain
 PyMuPDF
 PyPDF2
 trulens
-doc2txt
+docx2txt
